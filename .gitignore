@@ -1,21 +1,10 @@
 # Logs
 logs
 *.log
-npm-debug.log*
 
 # Dependencies
 node_modules
+/frontend/node_modules
+/backend/node_modules
 dist
 dist-ssr
-
-# Editor/OS files
-.vscode/*
-.idea
-.DS_Store
-
-# Frontend build files (KEEP THESE)
-/frontend/dist
-/frontend/node_modules
-
-# Backend specific files
-/backend/node_modules
