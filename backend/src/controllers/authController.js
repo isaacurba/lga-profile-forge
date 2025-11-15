@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import userModel from "../models/userModel.js";
+import transporter from "../config/nodemailer.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -8,7 +11,6 @@ export const register = async (req, res) => {
     return res.json({ success: false, message: "Missing Details" });
   }
 
-  // Hash password
   try {
     const existingUser = await userModel.findOne({ email });
     if (existingUser) {
@@ -22,7 +24,7 @@ export const register = async (req, res) => {
     });
     await user.save();
 
-    // generate tokrn fot auth
+    // generate token for auth
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
@@ -33,7 +35,21 @@ export const register = async (req, res) => {
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.json({ success: true });
+
+    // sending welcome Email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Welcome to LGAs",
+      text: `Hi ${user.name}, welcome to LGAs.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.json({
+      success: true,
+      user: { id: user._id, name: user.name, email: user.email },
+    });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
@@ -50,16 +66,34 @@ export const login = async (req, res) => {
   }
 
   try {
-    const user = await userModel.findOne({ email });
-    if (!user) return res.json({ success: false, message: "invalid email" });
+    // We add .select('+password') to retrieve the password hash
+    const user = await userModel.findOne({ email }).select("+password");
 
-    const isMatch = await bcript.compare(password, user.password);
+    if (!user)
+      return res.json({ success: false, message: "Invalid Email or Password" });
+
+    // FIX: Corrected typo from bcript.compare to bcrypt.compare
+    const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch)
-      return res.json({ success: false, message: "Invalid Password" });
+      return res.json({ success: false, message: "Invalid Email or Password" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // Assuming role check will be added later, for now we log them in
+    const token = jwt.sign(
+      { id: user._id, role: user.role || "citizen" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    // Do NOT send the password in the user object
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role || "citizen",
+    };
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -67,7 +101,9 @@ export const login = async (req, res) => {
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.json({ success: true });
+
+    // Sending token separately for frontend fetch method
+    return res.json({ success: true, token, user: userResponse });
   } catch (error) {
     return res.json({ success: false, message: error.message });
   }
@@ -79,9 +115,9 @@ export const logOut = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,  
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.json({ success: true, message:"Logged Out  " })
+    return res.json({ success: true, message: "Logged Out" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
