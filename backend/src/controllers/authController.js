@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import userModel from "../models/userModel.js";
 import transporter from "../config/nodemailer.js";
 import dotenv from "dotenv";
+import { urlencoded } from "express";
 dotenv.config();
 
 export const register = async (req, res) => {
@@ -40,8 +41,8 @@ export const register = async (req, res) => {
     const mailOptions = {
       from: process.env.SENDER_EMAIL,
       to: user.email,
-      subject: "Welcome to LGAs",
-      text: `Hi ${user.name}, welcome to LGAs.`,
+      subject: "Welcome to LGA-Community",
+      text: `Welcome to LGA-Community your Account has been created with email id: ${user.email}`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -118,6 +119,35 @@ export const logOut = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     return res.json({ success: true, message: "Logged Out" });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// send verification OTP to user email
+export const sendVerifyOtp = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await userModel.findById(userId);
+
+    if (user.isAccountVerified) {
+      return res.json({ success: false, message: "Account already verified" });
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+    user.verifyOtp = otp;
+    user.verifyOtpExpireAt = Date.now() + 24 * 60 * 60 * 1000;
+
+    await user.save();
+
+    const mailOptions = {
+      from: process.env.SENDER_EMAIL,
+      to: user.email,
+      subject: "Accoiunt Verification OTP",
+      text: `Your  OTP is ${otp}. Verify your account using this OTP.`,
+    };
+    await transporter.sendMail(mailOptions);
+    return res.json({ success: true, message: "Verification OTP sent on Email;" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
