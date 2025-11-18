@@ -38,7 +38,7 @@ export const register = async (req, res) => {
 
     // sending welcome Email
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.SENDER_EMAIL,
       to: user.email,
       subject: "Welcome to LGAs",
       text: `Hi ${user.name}, welcome to LGAs.`,

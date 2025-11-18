@@ -3,12 +3,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
+  host: "smtp.sendgrid.net",
   port: 587,
   secure: false, // upgrade later with STARTTLS
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: "apikey",
+    pass: process.env.SENDGRID_API_KEY,
   },
 });
 
